@@ -22,6 +22,9 @@ interface LibraryDao {
     @Query("SELECT * FROM books WHERE isbn = :isbn LIMIT 1")
     suspend fun getBookByIsbn(isbn: String): BookEntity?
 
+    @Query("SELECT * FROM books WHERE qrCode LIKE '%' || :code || '%' OR isbn LIKE '%' || :code || '%' OR title LIKE '%' || :code || '%' LIMIT 1")
+    suspend fun findBookFlexible(code: String): BookEntity?
+
     @Query("""
         SELECT * FROM books 
         WHERE (:query = '' OR title LIKE '%' || :query || '%' OR author LIKE '%' || :query || '%' OR isbn LIKE '%' || :query || '%')
@@ -59,6 +62,9 @@ interface LibraryDao {
 
     @Query("SELECT * FROM students WHERE studentCardQr = :qrCode OR studentNumber = :qrCode LIMIT 1")
     suspend fun getStudentByQrCode(qrCode: String): StudentEntity?
+
+    @Query("SELECT * FROM students WHERE studentCardQr LIKE '%' || :code || '%' OR studentNumber LIKE '%' || :code || '%' OR email LIKE '%' || :code || '%' LIMIT 1")
+    suspend fun findStudentFlexible(code: String): StudentEntity?
 
     @Query("SELECT * FROM students WHERE LOWER(email) = LOWER(:email) LIMIT 1")
     suspend fun getStudentByEmail(email: String): StudentEntity?

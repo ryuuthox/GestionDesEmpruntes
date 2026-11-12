@@ -1,0 +1,14 @@
+{
+  "firestore": {
+    "database": "ai-studio-android-biblioem-f81c821a-1974-464e-81b6-abb649c10d75",
+    "rules": "firestore.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8085
+    },
+    "auth": {
+      "port": 9099
+    }
+  }
+}

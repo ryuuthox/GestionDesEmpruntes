@@ -37,11 +37,13 @@ class LibraryRepository(private val dao: LibraryDao) {
     }
 
     suspend fun getStudentByCardQr(qrCode: String): StudentEntity? {
-        return dao.getStudentByQrCode(qrCode.trim())
+        val cleaned = qrCode.trim()
+        return dao.getStudentByQrCode(cleaned) ?: dao.findStudentFlexible(cleaned)
     }
 
     suspend fun getBookByQrCode(qrCode: String): BookEntity? {
-        return dao.getBookByQrCode(qrCode.trim()) ?: dao.getBookByIsbn(qrCode.trim())
+        val cleaned = qrCode.trim()
+        return dao.getBookByQrCode(cleaned) ?: dao.getBookByIsbn(cleaned) ?: dao.findBookFlexible(cleaned)
     }
 
     suspend fun checkBookAvailability(qrCode: String): AvailabilityCheckResult {

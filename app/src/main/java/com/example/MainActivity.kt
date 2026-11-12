@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import kotlinx.coroutines.launch
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -163,8 +164,15 @@ fun AuthenticatedMainScreen(
                         }
                     },
                     actions = {
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
                         IconButton(
-                            onClick = { viewModel.logout() },
+                            onClick = {
+                                coroutineScope.launch {
+                                    com.example.auth.GoogleAuthHelper.signOut(context)
+                                    viewModel.logout()
+                                }
+                            },
                             modifier = Modifier.testTag("button_logout")
                         ) {
                             Icon(

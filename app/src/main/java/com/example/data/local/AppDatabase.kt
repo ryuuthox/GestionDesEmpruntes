@@ -138,6 +138,24 @@ abstract class AppDatabase : RoomDatabase() {
                     email = "mehdi.tazi@usmba.ac.ma",
                     department = "ENCG Fès - Management & Commerce",
                     phone = "06 66 55 44 33"
+                ),
+                StudentEntity(
+                    id = 8,
+                    studentCardQr = "STUDENT-ENTTAIM-8",
+                    studentNumber = "USMBA-2024-008",
+                    fullName = "Enttaim Test",
+                    email = "enttaim8@gmail.com",
+                    department = "FSDM Fès - Informatique",
+                    phone = "06 00 00 00 01"
+                ),
+                StudentEntity(
+                    id = 9,
+                    studentCardQr = "STUDENT-MUSIXA-9",
+                    studentNumber = "USMBA-2024-009",
+                    fullName = "Musixa Test",
+                    email = "musixa360@gmail.com",
+                    department = "FST Fès - Génie Logiciel",
+                    phone = "06 00 00 00 02"
                 )
             )
             dao.insertStudents(students)
@@ -403,6 +421,38 @@ abstract class AppDatabase : RoomDatabase() {
                     dueDate = now - (16 * dayInMillis),
                     returnDate = now - (15 * dayInMillis),
                     isReturned = true,
+                    lastEmailReminderSent = null
+                ),
+                // 7) En retard de 4 jours pour enttaim8@gmail.com
+                LoanEntity(
+                    id = 7,
+                    bookId = 3,
+                    bookTitle = "Algèbre Linéaire et Géométrie Analytique",
+                    bookQrCode = "BOOK-978-03003",
+                    studentId = 8,
+                    studentName = "Enttaim Test",
+                    studentEmail = "enttaim8@gmail.com",
+                    studentCardQr = "STUDENT-ENTTAIM-8",
+                    loanDate = now - (18 * dayInMillis),
+                    dueDate = now - (4 * dayInMillis),
+                    returnDate = null,
+                    isReturned = false,
+                    lastEmailReminderSent = null
+                ),
+                // 8) En retard de 7 jours pour musixa360@gmail.com
+                LoanEntity(
+                    id = 8,
+                    bookId = 9,
+                    bookTitle = "Base de Données Relationnelles et Systèmes Distribués",
+                    bookQrCode = "BOOK-978-09009",
+                    studentId = 9,
+                    studentName = "Musixa Test",
+                    studentEmail = "musixa360@gmail.com",
+                    studentCardQr = "STUDENT-MUSIXA-9",
+                    loanDate = now - (21 * dayInMillis),
+                    dueDate = now - (7 * dayInMillis),
+                    returnDate = null,
+                    isReturned = false,
                     lastEmailReminderSent = null
                 )
             )

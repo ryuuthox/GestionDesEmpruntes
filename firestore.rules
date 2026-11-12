@@ -1,0 +1,110 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isGerantOrAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "gerant@usmba.ac.ma" ||
+        request.auth.token.email == "ryuuthox@gmail.com" ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "gerant")
+      );
+    }
+
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.email is string && data.email.size() <= 150 &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             data.role in ['gerant', 'utilisateur'] &&
+             (!('studentCardQr' in data) || (data.studentCardQr is string && data.studentCardQr.size() <= 100)) &&
+             (!('studentNumber' in data) || (data.studentNumber is string && data.studentNumber.size() <= 50)) &&
+             (!('department' in data) || (data.department is string && data.department.size() <= 100)) &&
+             (!('createdAt' in data) || (data.createdAt is timestamp && data.createdAt <= request.time)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidBook(data) {
+      return data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             data.author is string && data.author.size() >= 1 && data.author.size() <= 150 &&
+             data.isbn is string && data.isbn.size() <= 50 &&
+             data.category is string && data.category.size() <= 80 &&
+             data.totalCopies is int && data.totalCopies >= 0 &&
+             data.availableCopies is int && data.availableCopies >= 0 &&
+             data.availableCopies <= data.totalCopies &&
+             data.qrCode is string && data.qrCode.size() <= 100 &&
+             (!('publishYear' in data) || (data.publishYear is int && data.publishYear >= 1800 && data.publishYear <= 2100)) &&
+             (!('shelfLocation' in data) || (data.shelfLocation is string && data.shelfLocation.size() <= 50)) &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 2000)) &&
+             (!('createdAt' in data) || (data.createdAt is timestamp && data.createdAt <= request.time)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidLoan(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.bookId is string && data.bookId.size() <= 128 &&
+             data.bookTitle is string && data.bookTitle.size() <= 200 &&
+             data.bookQrCode is string && data.bookQrCode.size() <= 100 &&
+             data.studentName is string && data.studentName.size() <= 150 &&
+             data.studentEmail is string && data.studentEmail.size() <= 150 &&
+             data.isReturned is bool &&
+             (!('studentCardQr' in data) || (data.studentCardQr is string && data.studentCardQr.size() <= 100)) &&
+             (!('loanDate' in data) || (data.loanDate is timestamp && data.loanDate <= request.time)) &&
+             (!('dueDate' in data) || (data.dueDate is timestamp)) &&
+             (!('returnDate' in data) || (data.returnDate is timestamp)) &&
+             (!('createdAt' in data) || (data.createdAt is timestamp && data.createdAt <= request.time)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    // Profils utilisateurs
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isGerantOrAdmin());
+      allow list: if isSignedIn() && (request.auth.uid == userId || isGerantOrAdmin());
+      allow create: if isSignedIn() && request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       isValidUserProfile(incoming());
+      allow update: if isSignedIn() && (request.auth.uid == userId || isGerantOrAdmin()) &&
+                       incoming().userId == existing().userId &&
+                       isValidUserProfile(incoming());
+      allow delete: if isGerantOrAdmin();
+    }
+
+    // Catalogue des livres
+    match /books/{bookId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidBook(incoming());
+      allow update: if isSignedIn() && isValidBook(incoming());
+      allow delete: if isGerantOrAdmin();
+    }
+
+    // Emprunts et retours
+    match /loans/{loanId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isGerantOrAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isGerantOrAdmin());
+      allow create: if isSignedIn() && isValidLoan(incoming());
+      allow update: if isSignedIn() && (existing().userId == request.auth.uid || isGerantOrAdmin()) &&
+                       isValidLoan(incoming());
+      allow delete: if isGerantOrAdmin();
+    }
+  }
+}

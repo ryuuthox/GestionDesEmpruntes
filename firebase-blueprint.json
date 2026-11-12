@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Profil utilisateur ou étudiant avec rôle et identifiant de carte",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "UID Firebase Auth" },
+        "email": { "type": "string", "description": "Email académique" },
+        "displayName": { "type": "string", "description": "Nom complet" },
+        "role": { "type": "string", "enum": ["gerant", "utilisateur"], "description": "Rôle de l'utilisateur" },
+        "studentCardQr": { "type": "string", "description": "QR Code de carte étudiante" },
+        "studentNumber": { "type": "string", "description": "Matricule étudiant" },
+        "department": { "type": "string", "description": "Filière universitaire" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "email", "displayName", "role"]
+    },
+    "Book": {
+      "title": "Book",
+      "description": "Ouvrage de la bibliothèque universitaire",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Titre du livre" },
+        "author": { "type": "string", "description": "Auteur du livre" },
+        "isbn": { "type": "string", "description": "Numéro ISBN" },
+        "category": { "type": "string", "description": "Rayon ou catégorie" },
+        "publishYear": { "type": "integer", "description": "Année d'édition" },
+        "totalCopies": { "type": "integer", "description": "Exemplaires totaux" },
+        "availableCopies": { "type": "integer", "description": "Exemplaires disponibles" },
+        "shelfLocation": { "type": "string", "description": "Emplacement en rayon" },
+        "description": { "type": "string", "description": "Résumé du livre" },
+        "qrCode": { "type": "string", "description": "QR Code du livre" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "author", "isbn", "category", "totalCopies", "availableCopies", "qrCode"]
+    },
+    "Loan": {
+      "title": "Loan",
+      "description": "Enregistrement d'emprunt d'un livre",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "UID de l'emprunteur" },
+        "bookId": { "type": "string", "description": "Identifiant du livre" },
+        "bookTitle": { "type": "string", "description": "Titre de l'ouvrage" },
+        "bookQrCode": { "type": "string", "description": "Code QR du livre" },
+        "studentName": { "type": "string", "description": "Nom de l'étudiant" },
+        "studentEmail": { "type": "string", "description": "Email de l'étudiant" },
+        "studentCardQr": { "type": "string", "description": "Code QR de la carte" },
+        "loanDate": { "type": "string", "format": "date-time" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "returnDate": { "type": "string", "format": "date-time" },
+        "isReturned": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "bookTitle", "bookQrCode", "studentName", "studentEmail", "isReturned"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Profils des utilisateurs et étudiants"
+    },
+    "/books/{bookId}": {
+      "schema": { "$ref": "#/entities/Book" },
+      "description": "Catalogue des ouvrages de la bibliothèque"
+    },
+    "/loans/{loanId}": {
+      "schema": { "$ref": "#/entities/Loan" },
+      "description": "Emprunts et retours de livres"
+    }
+  }
+}

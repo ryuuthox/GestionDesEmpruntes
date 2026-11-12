@@ -93,15 +93,15 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private suspend fun resolveUserByEmail(email: String): AuthenticatedUser? {
+    private suspend fun resolveUserByEmail(email: String, displayNameOverride: String? = null): AuthenticatedUser? {
         val cleaned = email.trim().lowercase()
-        // Special Manager Account (and aliases like gerant@, admin@, bibliotheque@)
+        // Special Manager Account (including developer admin and official USMBA aliases)
         if (cleaned == "gerant@usmba.ac.ma" || cleaned == "admin@usmba.ac.ma" || cleaned == "bibliotheque@usmba.ac.ma"
-            || cleaned.startsWith("gerant@") || cleaned.startsWith("admin@")) {
+            || cleaned == "ryuuthox@gmail.com" || cleaned.startsWith("gerant@") || cleaned.startsWith("admin@")) {
             return AuthenticatedUser(
                 email = email.trim(),
                 role = AppRole.GERANT,
-                displayName = "Gérant de Bibliothèque USMBA"
+                displayName = displayNameOverride ?: "Gérant de Bibliothèque USMBA"
             )
         }
 
@@ -111,22 +111,22 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             return AuthenticatedUser(
                 email = student.email,
                 role = AppRole.UTILISATEUR,
-                displayName = student.fullName,
+                displayName = displayNameOverride ?: student.fullName,
                 studentProfile = student
             )
         }
 
-        // If email belongs to @usmba.ac.ma domain, auto-create student session
-        if (cleaned.endsWith("@usmba.ac.ma")) {
-            val prefix = cleaned.substringBefore("@usmba.ac.ma")
+        // Test student exceptions (enttaim8@gmail.com, musixa360@gmail.com) or @usmba.ac.ma domain
+        if (cleaned == "enttaim8@gmail.com" || cleaned == "musixa360@gmail.com" || cleaned.endsWith("@usmba.ac.ma")) {
+            val prefix = if (cleaned.endsWith("@usmba.ac.ma")) cleaned.substringBefore("@usmba.ac.ma") else cleaned.substringBefore("@")
             val nameParts = prefix.split(".", "_", "-")
-            val derivedName = nameParts.joinToString(" ") { part ->
+            val derivedName = displayNameOverride ?: nameParts.joinToString(" ") { part ->
                 part.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
             }
             val dynamicStudent = StudentEntity(
-                studentCardQr = "STUDENT-USMBA-${System.currentTimeMillis() % 100000}",
+                studentCardQr = "STUDENT-TEST-${System.currentTimeMillis() % 100000}",
                 studentNumber = "USMBA-${(1000..9999).random()}",
-                fullName = if (derivedName.isNotBlank()) derivedName else "Étudiant USMBA",
+                fullName = if (derivedName.isNotBlank() && derivedName != "Enttaim8" && derivedName != "Musixa360") derivedName else (if (cleaned == "enttaim8@gmail.com") "Enttaim Test" else "Musixa Test"),
                 email = cleaned,
                 department = "Université Sidi Mohamed Ben Abdellah",
                 phone = "06 00 00 00 00"
@@ -142,9 +142,33 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         return null
     }
 
+    fun handleFirebaseGoogleUser(firebaseUser: com.google.firebase.auth.FirebaseUser) {
+        val email = firebaseUser.email?.trim()?.lowercase() ?: ""
+        val displayName = firebaseUser.displayName
+
+        if (email.isBlank()) {
+            _authState.value = AuthState.Error("Impossible de récupérer l'adresse email associée à ce compte Google.")
+            return
+        }
+
+        viewModelScope.launch {
+            val user = resolveUserByEmail(email, displayName)
+            if (user != null) {
+                repository.saveSessionEmail(user.email)
+                _loggedInUser.value = user
+                _currentRole.value = user.role
+                _authState.value = AuthState.Authenticated(user)
+            } else {
+                _authState.value = AuthState.Error(
+                    "Compte Google ($email) connecté : L'accès à la bibliothèque est réservé aux comptes académiques @usmba.ac.ma ou aux gérants autorisés."
+                )
+            }
+        }
+    }
+
     fun loginWithGoogleAcademic(accountEmail: String) {
         val trimmed = accountEmail.trim().lowercase()
-        if (!trimmed.endsWith("@usmba.ac.ma")) {
+        if (!trimmed.endsWith("@usmba.ac.ma") && trimmed != "enttaim8@gmail.com" && trimmed != "musixa360@gmail.com") {
             _authState.value = AuthState.Error(
                 "Accès restreint : Veuillez choisir votre compte institutionnel Google (@usmba.ac.ma)."
             )
@@ -154,8 +178,12 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         loginWithEmail(trimmed)
     }
 
+    fun setAuthError(errorMessage: String) {
+        _authState.value = AuthState.Error(errorMessage)
+    }
+
     fun loginWithEmail(email: String) {
-        val trimmed = email.trim()
+        val trimmed = email.trim().lowercase()
         if (trimmed.isBlank()) {
             _authState.value = AuthState.Error("Veuillez saisir votre adresse email académique USMBA.")
             return
@@ -166,7 +194,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             return
         }
 
-        if (!trimmed.lowercase().endsWith("@usmba.ac.ma")) {
+        if (!trimmed.endsWith("@usmba.ac.ma") && trimmed != "enttaim8@gmail.com" && trimmed != "musixa360@gmail.com") {
             _authState.value = AuthState.Error(
                 "Le domaine doit être @usmba.ac.ma (Université Sidi Mohamed Ben Abdellah)."
             )
