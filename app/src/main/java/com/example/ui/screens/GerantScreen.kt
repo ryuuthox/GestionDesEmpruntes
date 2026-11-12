@@ -25,20 +25,30 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.ForwardToInbox
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.window.Dialog
+import com.example.data.local.BookEntity
+import com.example.data.local.StudentEntity
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -108,7 +118,7 @@ fun GerantScreen(
                 onClick = { selectedGerantTab = 1 },
                 text = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Suivi des prêts & retards")
+                        Text("Prêts & Retards")
                         if (overdueCount > 0) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Badge(
@@ -126,7 +136,7 @@ fun GerantScreen(
             Tab(
                 selected = selectedGerantTab == 2,
                 onClick = { selectedGerantTab = 2 },
-                text = { Text("Notifications envoyées") },
+                text = { Text("Historique relances") },
                 icon = { Icon(Icons.Default.MarkEmailRead, contentDescription = null) },
                 modifier = Modifier.testTag("tab_email_logs")
             )
@@ -701,8 +711,8 @@ private fun LoansTrackingSection(viewModel: LibraryViewModel) {
     selectedLoanForEmail?.let { loan ->
         EmailNotificationDialog(
             loan = loan,
-            onSendEmail = { subject, body ->
-                viewModel.dispatchEmailReminder(subject, body)
+            onSendEmail = { recipient, subject, body ->
+                viewModel.dispatchEmailReminder(recipient, subject, body)
             },
             onDismiss = { viewModel.closeEmailReminderDialog() }
         )

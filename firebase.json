@@ -1,6 +1,6 @@
 {
   "firestore": {
-    "database": "ai-studio-android-biblioem-f81c821a-1974-464e-81b6-abb649c10d75",
+    "database": "ai-studio-android-gestiond-317656e8-47ab-404d-b5de-1f3cd4b4f79b",
     "rules": "firestore.rules"
   },
   "emulators": {

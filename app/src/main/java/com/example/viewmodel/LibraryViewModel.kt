@@ -123,19 +123,22 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             val derivedName = displayNameOverride ?: nameParts.joinToString(" ") { part ->
                 part.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
             }
+            val cleanHash = (cleaned.hashCode().let { if (it < 0) -it else it } % 9000) + 1000
             val dynamicStudent = StudentEntity(
-                studentCardQr = "STUDENT-TEST-${System.currentTimeMillis() % 100000}",
-                studentNumber = "USMBA-${(1000..9999).random()}",
+                studentCardQr = "STUDENT-USMBA-$cleanHash",
+                studentNumber = "USMBA-$cleanHash",
                 fullName = if (derivedName.isNotBlank() && derivedName != "Enttaim8" && derivedName != "Musixa360") derivedName else (if (cleaned == "enttaim8@gmail.com") "Enttaim Test" else "Musixa Test"),
                 email = cleaned,
                 department = "Université Sidi Mohamed Ben Abdellah",
                 phone = "06 00 00 00 00"
             )
+            val newId = repository.insertStudent(dynamicStudent)
+            val savedProfile = dynamicStudent.copy(id = newId)
             return AuthenticatedUser(
                 email = cleaned,
                 role = AppRole.UTILISATEUR,
-                displayName = dynamicStudent.fullName,
-                studentProfile = dynamicStudent
+                displayName = savedProfile.fullName,
+                studentProfile = savedProfile
             )
         }
 
@@ -248,24 +251,55 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     val registrationState: StateFlow<LoanRegistrationState> = _registrationState.asStateFlow()
 
     fun onScanStudentCard(scannedCode: String) {
+        val trimmed = scannedCode.trim()
         viewModelScope.launch {
-            val student = repository.getStudentByCardQr(scannedCode)
+            // 1. Recherche normale de carte étudiante
+            val student = repository.getStudentByCardQr(trimmed)
             if (student != null) {
                 _registrationState.value = _registrationState.value.copy(
                     student = student,
                     errorMessage = null
                 )
-            } else {
-                _registrationState.value = _registrationState.value.copy(
-                    errorMessage = "Carte étudiante non reconnue : '$scannedCode'"
-                )
+                return@launch
             }
+
+            // 2. Détection intelligente : l'utilisateur a-t-il scanné un livre existant ?
+            val possibleBook = repository.getBookByQrCode(trimmed)
+            if (possibleBook != null) {
+                val availability = repository.checkBookAvailabilityById(possibleBook.id)
+                _registrationState.value = _registrationState.value.copy(
+                    book = possibleBook,
+                    availability = availability,
+                    errorMessage = "Ouvrage '${possibleBook.title}' reconnu et sélectionné ! Scannez maintenant la carte de l'étudiant."
+                )
+                return@launch
+            }
+
+            // 3. Détection intelligente : l'utilisateur a-t-il scanné une URL de livre ou un ISBN ?
+            if (trimmed.contains("/book/", ignoreCase = true) ||
+                trimmed.contains("jarir", ignoreCase = true) ||
+                trimmed.contains("isbn", ignoreCase = true) ||
+                trimmed.startsWith("http://", ignoreCase = true) ||
+                trimmed.startsWith("https://", ignoreCase = true) ||
+                trimmed.matches(Regex("^[0-9\\-]{10,17}$"))
+            ) {
+                _registrationState.value = _registrationState.value.copy(
+                    errorMessage = "Code de livre détecté ('$trimmed') au lieu d'une carte étudiante. Scannez la carte étudiante de l'emprunteur ou choisissez-le dans la liste ci-dessous."
+                )
+                return@launch
+            }
+
+            _registrationState.value = _registrationState.value.copy(
+                errorMessage = "Carte étudiante non reconnue : '$trimmed'. Vous pouvez également choisir l'étudiant dans la liste ci-dessous."
+            )
         }
     }
 
     fun onScanBookQr(scannedCode: String) {
+        val trimmed = scannedCode.trim()
         viewModelScope.launch {
-            val book = repository.getBookByQrCode(scannedCode)
+            // 1. Recherche normale de livre
+            val book = repository.getBookByQrCode(trimmed)
             if (book != null) {
                 val availability = repository.checkBookAvailabilityById(book.id)
                 _registrationState.value = _registrationState.value.copy(
@@ -273,11 +307,72 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                     availability = availability,
                     errorMessage = null
                 )
-            } else {
-                _registrationState.value = _registrationState.value.copy(
-                    errorMessage = "Ouvrage non reconnu pour le QR code : '$scannedCode'"
-                )
+                return@launch
             }
+
+            // 2. Détection intelligente : l'utilisateur a-t-il scanné une carte étudiante ?
+            val possibleStudent = repository.getStudentByCardQr(trimmed)
+            if (possibleStudent != null) {
+                _registrationState.value = _registrationState.value.copy(
+                    student = possibleStudent,
+                    errorMessage = "Carte de ${possibleStudent.fullName} reconnue et enregistrée ! Scannez maintenant le QR code du livre."
+                )
+                return@launch
+            }
+
+            // 3. Code livre inconnu (ex: jarirreader.com ou nouvel ISBN)
+            _registrationState.value = _registrationState.value.copy(
+                errorMessage = "Ouvrage non répertorié dans la bibliothèque pour le code : '$trimmed'. Vous pouvez le choisir dans le catalogue ou l'ajouter."
+            )
+        }
+    }
+
+    fun selectStudent(student: StudentEntity) {
+        _registrationState.value = _registrationState.value.copy(
+            student = student,
+            errorMessage = null
+        )
+    }
+
+    fun selectBook(book: BookEntity) {
+        viewModelScope.launch {
+            val availability = repository.checkBookAvailabilityById(book.id)
+            _registrationState.value = _registrationState.value.copy(
+                book = book,
+                availability = availability,
+                errorMessage = null
+            )
+        }
+    }
+
+    fun clearStudent() {
+        _registrationState.value = _registrationState.value.copy(student = null)
+    }
+
+    fun clearBook() {
+        _registrationState.value = _registrationState.value.copy(
+            book = null,
+            availability = null
+        )
+    }
+
+    fun quickAddBook(title: String, author: String, qrCode: String, isbn: String = "", category: String = "Informatique & Sciences") {
+        viewModelScope.launch {
+            val cleanQr = qrCode.trim()
+            val newBook = BookEntity(
+                title = title.trim(),
+                author = author.trim().ifBlank { "Auteur USMBA" },
+                isbn = isbn.trim().ifBlank { cleanQr.substringAfterLast("/").ifBlank { "ISBN-${System.currentTimeMillis() % 100000}" } },
+                category = category,
+                publishYear = 2024,
+                totalCopies = 3,
+                availableCopies = 3,
+                shelfLocation = "Rayon Général - Guichet",
+                description = "Ouvrage enregistré via le lecteur de codes",
+                qrCode = cleanQr
+            )
+            val newId = repository.insertBook(newBook)
+            selectBook(newBook.copy(id = newId))
         }
     }
 
@@ -368,10 +463,10 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         _selectedLoanForEmail.value = null
     }
 
-    fun dispatchEmailReminder(subject: String, body: String) {
+    fun dispatchEmailReminder(recipientEmail: String, subject: String, body: String) {
         val loan = _selectedLoanForEmail.value ?: return
         viewModelScope.launch {
-            repository.sendEmailReminder(loan, subject, body)
+            repository.sendEmailReminder(loan, recipientEmail, subject, body)
         }
     }
 

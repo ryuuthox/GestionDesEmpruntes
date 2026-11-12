@@ -46,6 +46,10 @@ class LibraryRepository(private val dao: LibraryDao) {
         return dao.getBookByQrCode(cleaned) ?: dao.getBookByIsbn(cleaned) ?: dao.findBookFlexible(cleaned)
     }
 
+    suspend fun insertBook(book: BookEntity): Long {
+        return dao.insertBook(book)
+    }
+
     suspend fun checkBookAvailability(qrCode: String): AvailabilityCheckResult {
         val book = getBookByQrCode(qrCode) ?: return AvailabilityCheckResult.NotFound
         return if (book.availableCopies > 0) {
@@ -124,6 +128,7 @@ class LibraryRepository(private val dao: LibraryDao) {
 
     suspend fun sendEmailReminder(
         loan: LoanEntity,
+        recipientEmail: String = loan.studentEmail,
         subject: String = "Rappel de bibliothèque : Retard de restitution d'ouvrage",
         customMessage: String? = null
     ): Result<EmailNotificationLogEntity> {
@@ -147,13 +152,13 @@ class LibraryRepository(private val dao: LibraryDao) {
 
         val log = EmailNotificationLogEntity(
             loanId = loan.id,
-            recipientEmail = loan.studentEmail,
+            recipientEmail = recipientEmail.trim(),
             recipientName = loan.studentName,
             bookTitle = loan.bookTitle,
             subject = subject,
             messageBody = body,
             sentTimestamp = now,
-            status = "Délivré via Service Email"
+            status = "Transmis au client de messagerie"
         )
 
         dao.insertEmailLog(log)
@@ -173,6 +178,10 @@ class LibraryRepository(private val dao: LibraryDao) {
 
     suspend fun getStudentByEmail(email: String): StudentEntity? {
         return dao.getStudentByEmail(email.trim())
+    }
+
+    suspend fun insertStudent(student: StudentEntity): Long {
+        return dao.insertStudent(student)
     }
 
     suspend fun getSavedSessionEmail(): String? {

@@ -156,6 +156,15 @@ abstract class AppDatabase : RoomDatabase() {
                     email = "musixa360@gmail.com",
                     department = "FST Fès - Génie Logiciel",
                     phone = "06 00 00 00 02"
+                ),
+                StudentEntity(
+                    id = 10,
+                    studentCardQr = "STUDENT-USMBA-2024-010",
+                    studentNumber = "USMBA-2024-010",
+                    fullName = "Adam Abderrahmane Rahmaoui",
+                    email = "adamabderrahmane.rahmaoui@usmba.ac.ma",
+                    department = "FSDM Fès - Informatique & IA",
+                    phone = "06 12 00 00 10"
                 )
             )
             dao.insertStudents(students)
@@ -451,6 +460,22 @@ abstract class AppDatabase : RoomDatabase() {
                     studentCardQr = "STUDENT-MUSIXA-9",
                     loanDate = now - (21 * dayInMillis),
                     dueDate = now - (7 * dayInMillis),
+                    returnDate = null,
+                    isReturned = false,
+                    lastEmailReminderSent = null
+                ),
+                // 9) En retard de 5 jours pour Adam Abderrahmane Rahmaoui (pour tester la relance)
+                LoanEntity(
+                    id = 9,
+                    bookId = 1,
+                    bookTitle = "Conception et Architecture Logicielle",
+                    bookQrCode = "BOOK-978-01001",
+                    studentId = 10,
+                    studentName = "Adam Abderrahmane Rahmaoui",
+                    studentEmail = "adamabderrahmane.rahmaoui@usmba.ac.ma",
+                    studentCardQr = "STUDENT-USMBA-2024-010",
+                    loanDate = now - (19 * dayInMillis),
+                    dueDate = now - (5 * dayInMillis),
                     returnDate = null,
                     isReturned = false,
                     lastEmailReminderSent = null

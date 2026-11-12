@@ -620,28 +620,43 @@ private fun UltraCompactBookRow(
 }
 
 /**
- * Section Carte Étudiant de l'utilisateur
+ * Section Carte Étudiant de l'utilisateur (affichage exclusif de la carte personnelle)
  */
 @Composable
 private fun StudentCardQrSection(viewModel: LibraryViewModel) {
-    val allStudents by viewModel.allStudents.collectAsStateWithLifecycle()
     val loggedInUser by viewModel.loggedInUser.collectAsStateWithLifecycle()
+    val allStudents by viewModel.allStudents.collectAsStateWithLifecycle()
 
-    var selectedStudentIndex by remember(loggedInUser, allStudents) {
-        val initialIdx = if (loggedInUser?.studentProfile != null) {
-            allStudents.indexOfFirst { it.id == loggedInUser?.studentProfile?.id }.coerceAtLeast(0)
-        } else 0
-        mutableIntStateOf(initialIdx)
-    }
+    // Résoudre strictement la carte de l'étudiant connecté
+    val currentStudent = loggedInUser?.studentProfile
+        ?: loggedInUser?.email?.let { email ->
+            allStudents.firstOrNull { it.email.equals(email.trim(), ignoreCase = true) }
+        }
 
-    if (allStudents.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Aucune carte étudiante enregistrée.")
+    if (currentStudent == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Default.Badge,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Aucune carte étudiante associée à ce compte.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         return
     }
-
-    val currentStudent = allStudents.getOrNull(selectedStudentIndex) ?: allStudents.first()
 
     Column(
         modifier = Modifier
@@ -650,29 +665,9 @@ private fun StudentCardQrSection(viewModel: LibraryViewModel) {
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "Sélectionner la carte étudiante :",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(allStudents) { student ->
-                val isSelected = student.id == currentStudent.id
-                FilterChip(
-                    selected = isSelected,
-                    onClick = {
-                        val idx = allStudents.indexOf(student)
-                        if (idx >= 0) selectedStudentIndex = idx
-                    },
-                    label = { Text(student.fullName) }
-                )
-            }
-        }
+        Spacer(modifier = Modifier.height(8.dp))
 
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Carte d'étudiant
+        // Carte d'étudiant personnelle
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -681,7 +676,8 @@ private fun StudentCardQrSection(viewModel: LibraryViewModel) {
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 // En-tête
